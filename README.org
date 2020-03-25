@@ -1,0 +1,33 @@
+* About
+
+  [[https://godoc.org/github.com/kumakichi/json-to-go][https://godoc.org/github.com/kumakichi/json-to-go?status.png]]
+
+  This is a reimplementation of [[https://github.com/mholt/json-to-go][json-to-go]], which is originally developed by [[https://github.com/mholt][mholt]] using javascript
+
+* How to use
+
+#+BEGIN_SRC go
+    package main
+    
+    import (
+    	"github.com/kumakichi/json-to-go"
+    )
+    
+    var (
+    	testData = `{
+      "name": {"first": "Tom", "last": "Anderson"},
+      "age":37,
+      "score": 92.0,
+      "children": ["Sara","Alex","Jack"],
+      "friends": [
+        {"first": "James", "last": "Murphy"},
+        {"first": "Roger", "last": "Craig"}
+      ]
+    }`
+    )
+    
+    func main() {
+        transformer := json-to-go.NewParser()
+        println(transformer.Parse(testData, "nodeName", true))
+    }
+#+END_SRC
