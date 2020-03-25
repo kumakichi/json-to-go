@@ -1,10 +1,9 @@
-package json-to-go
+package json_to_go
 
 import "testing"
 
 func TestParse(t *testing.T) {
-	parser := NewParser()
-	t.Log(parser.Parse(testData, "nodeName", true))
+	t.Log(Parse(testData))
 }
 
 var (

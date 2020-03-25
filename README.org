@@ -7,14 +7,19 @@
 * How to use
 
 #+BEGIN_SRC go
-    package main
-    
-    import (
-    	"github.com/kumakichi/json-to-go"
-    )
-    
-    var (
-    	testData = `{
+  package main
+
+  import (
+      "github.com/kumakichi/json-to-go"
+  )
+
+  func main() {
+      println(json_to_go.Parse(testData))
+      println(json_to_go.Parse(testData, json_to_go.Options{TypeName: "rootName", Flatten: true}))
+  }
+
+  var (
+      testData = `{
       "name": {"first": "Tom", "last": "Anderson"},
       "age":37,
       "score": 92.0,
@@ -24,10 +29,5 @@
         {"first": "Roger", "last": "Craig"}
       ]
     }`
-    )
-    
-    func main() {
-        transformer := json-to-go.NewParser()
-        println(transformer.Parse(testData, "nodeName", true))
-    }
+  )
 #+END_SRC
