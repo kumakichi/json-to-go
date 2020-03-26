@@ -13,23 +13,33 @@
 
   import (
       "github.com/kumakichi/json-to-go"
+      "log"
   )
 
   func main() {
-      println(json_to_go.Parse(testData))
-      println(json_to_go.Parse(testData, json_to_go.Options{TypeName: "rootName", Flatten: true}))
+      result, err := json_to_go.Parse(testData)
+      if err != nil {
+          log.Fatal(err)
+      }
+      println(result)
+
+      result, err = json_to_go.Parse(testData, json_to_go.Options{TypeName: "rootName", Flatten: true})
+      if err != nil {
+          log.Fatal(err)
+      }
+      println(result)
   }
 
   var (
       testData = `{
-      "name": {"first": "Tom", "last": "Anderson"},
-      "age":37,
-      "score": 92.0,
-      "children": ["Sara","Alex","Jack"],
-      "friends": [
-        {"first": "James", "last": "Murphy"},
-        {"first": "Roger", "last": "Craig"}
-      ]
-    }`
+        "name": {"first": "Tom", "last": "Anderson"},
+        "age":37,
+        "score": 92.0,
+        "children": ["Sara","Alex","Jack"],
+        "friends": [
+          {"first": "James", "last": "Murphy"},
+          {"first": "Roger", "last": "Craig"}
+        ]
+      }`
   )
 #+END_SRC
