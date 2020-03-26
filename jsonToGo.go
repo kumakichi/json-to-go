@@ -2,15 +2,18 @@ package json_to_go
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"github.com/tidwall/gjson"
 	gofmt "go/format"
 	goParser "go/parser"
 	"go/token"
+	"log"
+	"reflect"
 	"regexp"
 	"strings"
 
 	uuid "github.com/satori/go.uuid"
-	"github.com/tidwall/gjson"
 )
 
 /*
@@ -33,7 +36,7 @@ var (
 )
 
 type field struct {
-	value gjson.Result
+	value interface{}
 	count int
 }
 
@@ -82,7 +85,11 @@ func (t *parser) reset() {
 // parse json data in string
 func (t *parser) parse(jsonData string, option Options) string {
 	data := floatReg.ReplaceAllString(jsonData, ":$1.1") // hack that forces floats to stay as floats
-	scope := gjson.Parse(data)
+	var scope map[string]interface{}
+	err := json.Unmarshal([]byte(data), &scope)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	typename := option.TypeName
 	flatten := option.Flatten
@@ -151,8 +158,8 @@ func getOriginalName(unique string) string {
 	return unique
 }
 
-func compareObjects(objectA, objectB *gjson.Result) bool {
-	return objectA.IsObject() && objectB.IsObject()
+func compareObjects(objectA, objectB interface{}) bool {
+	return isObject(objectA) && isObject(objectB)
 }
 
 func compareObjectKeys(itemAKeys, itemBKeys []string) bool {
@@ -243,7 +250,7 @@ func format(str string) string {
 }
 
 // Determines the most appropriate Go type
-func goType(val *gjson.Result) string {
+func goType(val interface{}) string {
 	typ := val.Type
 	if typ == gjson.Null {
 		return "interface{}"
@@ -371,10 +378,21 @@ func replaceAllStringSubmatchFunc(re *regexp.Regexp, str string, repl func([]str
 	return result + str[lastIndex:]
 }
 
-func (t *parser) parseScope(scope gjson.Result, depth int, flatten bool) {
+func isObject(v interface{}) bool {
+	_,ok:=v.(map[string]interface{})
+	return ok
+}
+
+func isArray(v interface{}) bool {
+	_,ok:=v.([]interface{})
+	return ok
+}
+
+
+func (t *parser) parseScope(scope interface{}, depth int, flatten bool) {
 	var sliceType string
 
-	if !scope.IsObject() && !scope.IsArray() {
+	if !isObject(scope) && !isArray(scope) {
 		if flatten && depth >= 2 {
 			t.appender(goType(&scope))
 		} else {
@@ -383,8 +401,8 @@ func (t *parser) parseScope(scope gjson.Result, depth int, flatten bool) {
 		return
 	}
 
-	if scope.IsArray() {
-		arr := scope.Array()
+	if isArray(scope) {
+		arr := toArray(scope)
 		scopeLength := len(arr)
 
 		for i := 0; i < scopeLength; i++ {
@@ -415,8 +433,8 @@ func (t *parser) parseScope(scope gjson.Result, depth int, flatten bool) {
 			// for each field counts how many times appears
 			for i := 0; i < scopeLength; i++ {
 				ss := arr[i] // Object.keys(scope[i])
-				keys := getKeys(&ss)
-				sm := ss.Map()
+				keys := getKeys(ss)
+				sm:=toMap(ss)
 				for k := range keys {
 					keyname := keys[k]
 					ff := sm[keyname]
@@ -429,7 +447,7 @@ func (t *parser) parseScope(scope gjson.Result, depth int, flatten bool) {
 						existingValue := allFields[keyname].value
 						currentValue := ff //scope[i][keyname]
 
-						if compareObjects(&existingValue, &currentValue) {
+						if compareObjects(existingValue, currentValue) {
 							comparisonResult := compareObjectKeys(
 								getKeys(&currentValue),
 								getKeys(&existingValue),
@@ -459,7 +477,7 @@ func (t *parser) parseScope(scope gjson.Result, depth int, flatten bool) {
 				keys = append(keys, k)
 			}
 
-			scopes := make(map[string]gjson.Result)
+			scopes := make(map[string]interface{})
 			omitempty := make(map[string]bool)
 			for k := range keys {
 				keyname := keys[k]
@@ -470,7 +488,7 @@ func (t *parser) parseScope(scope gjson.Result, depth int, flatten bool) {
 			}
 			t.parseStruct(depth+1, t.innerTabs, scopes, omitempty, flatten) // finally parse the struct !!
 		} else if sliceType == "slice" {
-			t.parseScope(scope.Array()[0], depth, flatten)
+			t.parseScope(toArray(scope)[0], depth, flatten)
 		} else {
 			if flatten && depth >= 2 {
 				if sliceType == "" {
@@ -495,20 +513,39 @@ func (t *parser) parseScope(scope gjson.Result, depth int, flatten bool) {
 			}
 		}
 
-		t.parseStruct(depth+1, t.innerTabs, scope.Map(), nil, flatten)
+		t.parseStruct(depth+1, t.innerTabs, toMap(scope), nil, flatten)
 	}
 }
 
-func getKeys(scope *gjson.Result) []string {
+func getKeys(scope interface{}) []string {
 	var keys []string
-	mm := scope.Map()
-	for k := range mm {
+	v,ok:=scope.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	for k := range v {
 		keys = append(keys, k)
 	}
 	return keys
 }
 
-func (t *parser) parseStruct(depth, innerTabs int, scope map[string]gjson.Result, omitempty map[string]bool, flatten bool) {
+func toMap(scope interface{}) map[string]interface{}{
+	v,ok:=scope.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	return v
+}
+
+func toArray(scope interface{}) []interface{}{
+	v,ok:=scope.([]interface{})
+	if !ok {
+		return nil
+	}
+	return v
+}
+
+func (t *parser) parseStruct(depth, innerTabs int, scope map[string]interface{}, omitempty map[string]bool, flatten bool) {
 	if flatten {
 		if depth >= 2 {
 			t.stack = append(t.stack, "\n")
