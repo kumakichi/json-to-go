@@ -88,7 +88,7 @@ func (t *parser) reset() {
 // parse json data in string
 func (t *parser) parse(jsonData string, option Options) (string, error) {
 	data := floatReg.ReplaceAllString(jsonData, ":$1.1") // hack that forces floats to stay as floats
-	var scope map[string]interface{}
+	var scope interface{}
 	err := json.Unmarshal([]byte(data), &scope)
 	if err != nil {
 		return "", err
